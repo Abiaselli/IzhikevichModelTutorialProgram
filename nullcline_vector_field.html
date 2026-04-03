@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Izhikevich Nullcline Explorer</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #ef4444;
+      --orange: #f59e0b;
+      --purple: #7c3aed;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) 420px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(203, 213, 225, 0.65);
+      overflow: hidden;
+    }
+
+    .card .section {
+      padding: 20px;
+    }
+
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 32px; line-height: 1.15; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 16px; }
+    p { margin: 0; line-height: 1.6; color: var(--muted); }
+
+    .hero {
+      display: grid;
+      gap: 8px;
+      padding: 22px 22px 12px 22px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      padding: 0 22px 18px 22px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 16px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .tab.active {
+      background: #e2e8f0;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .plot-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .plot-inner {
+      padding: 12px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #f8fafc;
+      border-radius: 16px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .trace-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .trace-title {
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .small-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 12px;
+      background: white;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 20px;
+    }
+
+    .control-group {
+      display: grid;
+      gap: 14px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    select, button, input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font: inherit;
+      background: white;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .eq {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .info-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .info-box {
+      background: #f8fafc;
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .cards-grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { color: var(--muted); }
+    .spaced { display: grid; gap: 10px; }
+
+    @media (max-width: 1180px) {
+      .grid { grid-template-columns: 1fr; }
+      .cards-grid.three { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .wrap { padding: 12px; }
+      h1 { font-size: 24px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .btn-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <div class="hero">
+          <h1>Izhikevich neuron: nullclines, flow, and spiking</h1>
+          <p>
+            Explore how the voltage nullcline, recovery nullcline, reset rule, and input current shape phase-space trajectories and produce tonic spiking, bursting, resonance, adaptation, and rebound behavior.
+          </p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="explorer">Explorer</button>
+          <button class="tab" data-tab="interpretation">Interpretation</button>
+          <button class="tab" data-tab="guide">Parameter guide</button>
+        </div>
+
+        <div id="panel-explorer" class="panel active section spaced">
+          <div class="plot-card">
+            <div class="plot-inner">
+              <svg id="phasePlot" viewBox="0 0 760 420" aria-label="phase portrait"></svg>
+            </div>
+          </div>
+
+          <div class="legend">
+            <span>Black: trajectory</span>
+            <span style="color: var(--blue)">Blue: v-nullcline</span>
+            <span style="color: var(--green)">Green: u-nullcline</span>
+            <span style="color: var(--red)">Red: current state</span>
+            <span style="color: var(--purple)">Purple: threshold point</span>
+            <span style="color: #94a3b8">Gray: vector field</span>
+            <span style="color: var(--orange)">Orange: reset line</span>
+          </div>
+
+          <div class="trace-grid">
+            <div class="small-card">
+              <div class="trace-title">v(t)</div>
+              <svg id="vTrace" viewBox="0 0 760 220"></svg>
+            </div>
+            <div class="small-card">
+              <div class="trace-title">u(t)</div>
+              <svg id="uTrace" viewBox="0 0 760 180"></svg>
+            </div>
+            <div class="small-card">
+              <div class="trace-title">I(t)</div>
+              <svg id="iTrace" viewBox="0 0 760 140"></svg>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-interpretation" class="panel section">
+          <div class="cards-grid">
+            <div class="small-card spaced">
+              <h2>What the nullclines mean</h2>
+              <p>The blue parabola is where the membrane voltage derivative is zero, so it separates regions where <span class="mono">dv/dt</span> is positive from regions where it is negative.</p>
+              <p>The green line is where the recovery derivative is zero, so it separates regions where <span class="mono">du/dt</span> rises from regions where it falls.</p>
+              <p>Their intersections are fixed points. Their geometry determines whether the neuron rests, resonates, spikes, or bursts.</p>
+            </div>
+            <div class="small-card spaced">
+              <h2>Why spiking appears</h2>
+              <p>The quadratic term <span class="mono">0.04v²</span> bends the voltage nullcline into a parabola and creates a strongly accelerating right branch.</p>
+              <p>When the trajectory runs up that branch and crosses spike cutoff, the model stops following the smooth phase flow and applies the reset rule <span class="mono">v ← c</span>, <span class="mono">u ← u + d</span>.</p>
+              <p>That reset loop is what turns continuous dynamics into repetitive spikes and bursts.</p>
+            </div>
+          </div>
+          <div class="small-card spaced" style="margin-top:14px;">
+            <h2>Live interpretation</h2>
+            <div id="liveExplanation" class="muted"></div>
+          </div>
+        </div>
+
+        <div id="panel-guide" class="panel section">
+          <div class="cards-grid three">
+            <div class="small-card spaced"><h2>a</h2><p>Recovery speed. Larger <span class="mono">a</span> makes the slow variable react faster.</p></div>
+            <div class="small-card spaced"><h2>b</h2><p>Coupling slope. It sets the line <span class="mono">u = bv</span> and changes the fixed-point structure.</p></div>
+            <div class="small-card spaced"><h2>I</h2><p>Applied current. Increasing <span class="mono">I</span> lifts the voltage nullcline and can move the system into sustained spiking.</p></div>
+            <div class="small-card spaced"><h2>c</h2><p>Reset voltage after a spike. More negative <span class="mono">c</span> sends the state farther left after each reset.</p></div>
+            <div class="small-card spaced"><h2>d</h2><p>Recovery jump after a spike. Larger <span class="mono">d</span> increases adaptation by making future spikes harder for a while.</p></div>
+            <div class="small-card spaced"><h2>Presets</h2><p>The classic A–T behaviors are included so you can compare nullcline geometry, reset placement, and stimulus timing.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-stack">
+        <div class="card section spaced">
+          <h2>Model equations</h2>
+          <div class="eq">
+            <div>dv/dt = 0.04v² + 5v + 140 - u + I(t)</div>
+            <div>du/dt = a(bv - u)</div>
+            <div>if v ≥ 30 mV, then v ← c and u ← u + d</div>
+          </div>
+          <div class="info-box">
+            <div class="mono" id="nullclineEq1"></div>
+            <div class="mono" id="nullclineEq2"></div>
+            <div style="margin-top:8px;">Here, <span class="mono">v</span> is membrane potential, <span class="mono">u</span> is the recovery variable, <span class="mono">a</span> controls the time scale of recovery, <span class="mono">b</span> is the coupling slope, <span class="mono">c</span> is the reset voltage, <span class="mono">d</span> is the recovery jump, and <span class="mono">I</span> is the applied input current.</div>
+          </div>
+        </div>
+
+        <div class="card section spaced">
+          <h2>Controls</h2>
+          <div class="control-group">
+            <div class="spaced">
+              <label for="preset">Preset</label>
+              <select id="preset"></select>
+            </div>
+
+            <div class="spaced">
+              <div class="row"><label for="a">a</label><span id="aVal" class="muted mono"></span></div>
+              <input id="a" type="range" min="-0.1" max="1.2" step="0.01" />
+            </div>
+            <div class="spaced">
+              <div class="row"><label for="b">b</label><span id="bVal" class="muted mono"></span></div>
+              <input id="b" type="range" min="-1.2" max="1.6" step="0.01" />
+            </div>
+            <div class="spaced">
+              <div class="row"><label for="c">c</label><span id="cVal" class="muted mono"></span></div>
+              <input id="c" type="range" min="-80" max="-40" step="1" />
+            </div>
+            <div class="spaced">
+              <div class="row"><label for="d">d</label><span id="dVal" class="muted mono"></span></div>
+              <input id="d" type="range" min="-25" max="12" step="0.05" />
+            </div>
+            <div class="spaced">
+              <div class="row"><label for="I">I</label><span id="IVal" class="muted mono"></span></div>
+              <input id="I" type="range" min="-100" max="100" step="0.5" />
+            </div>
+
+            <div class="btn-grid">
+              <button id="playBtn">Pause</button>
+              <button id="restartBtn">Restart</button>
+              <button id="exciteBtn">Excitatory pulse</button>
+              <button id="inhibitBtn">Inhibitory pulse</button>
+            </div>
+
+            <div class="spaced">
+              <div class="row"><label for="speed">Playback speed</label><span id="speedVal" class="muted mono"></span></div>
+              <input id="speed" type="range" min="0.5" max="4" step="0.1" />
+            </div>
+
+            <div class="toggle">
+              <label for="useCurrentNullcline">Use current I in v-nullcline</label>
+              <input id="useCurrentNullcline" type="checkbox" checked />
+            </div>
+            <div class="toggle">
+              <label for="showThreshold">Show threshold point</label>
+              <input id="showThreshold" type="checkbox" checked />
+            </div>
+            <div class="toggle">
+              <label for="showVectorField">Show vector field arrows</label>
+              <input id="showVectorField" type="checkbox" checked />
+            </div>
+            <div class="spaced">
+              <div class="row"><label for="fieldDensity">Arrow density</label><span id="fieldDensityVal" class="muted mono"></span></div>
+              <input id="fieldDensity" type="range" min="8" max="24" step="1" />
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-box"><strong>Detected behavior:</strong> <span id="behaviorLabel"></span></div>
+            <div class="info-box"><strong>Spike count:</strong> <span id="spikeCount"></span></div>
+            <div class="info-box"><strong>Approximate burst groups:</strong> <span id="burstCount"></span></div>
+            <div class="info-box"><strong>Current state:</strong> <span id="stateLabel"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      A: { name: 'Tonic spiking', a: 0.02, b: 0.2, c: -65, d: 6, I: 14 },
+      B: { name: 'Phasic spiking', a: 0.02, b: 0.25, c: -65, d: 6, I: 0.5 },
+      C: { name: 'Tonic bursting', a: 0.02, b: 0.2, c: -50, d: 2, I: 15 },
+      D: { name: 'Phasic bursting', a: 0.02, b: 0.25, c: -55, d: 0.05, I: 0.6 },
+      E: { name: 'Mixed mode', a: 0.02, b: 0.2, c: -55, d: 4, I: 10 },
+      F: { name: 'Spike frequency adaptation', a: 0.01, b: 0.2, c: -65, d: 8, I: 30 },
+      G: { name: 'Class 1 excitable', a: 0.02, b: -0.1, c: -55, d: 6, I: 0 },
+      H: { name: 'Class 2 excitable', a: 0.2, b: 0.26, c: -65, d: 0, I: 0 },
+      I: { name: 'Spike latency', a: 0.02, b: 0.2, c: -65, d: 6, I: 7 },
+      J: { name: 'Subthreshold oscillations', a: 0.05, b: 0.26, c: -60, d: 0, I: 0 },
+      K: { name: 'Resonator', a: 0.1, b: 0.26, c: -60, d: -1, I: 0 },
+      L: { name: 'Integrator', a: 0.02, b: -0.1, c: -55, d: 6, I: 0 },
+      M: { name: 'Rebound spike', a: 0.03, b: 0.25, c: -60, d: 4, I: 0 },
+      N: { name: 'Rebound burst', a: 0.03, b: 0.25, c: -52, d: 0, I: 0 },
+      O: { name: 'Threshold variability', a: 0.03, b: 0.25, c: -60, d: 4, I: 0 },
+      P: { name: 'Bistability', a: 1, b: 1.5, c: -60, d: 0, I: -65 },
+      Q: { name: 'Depolarizing after-potential', a: 1, b: 0.2, c: -60, d: -21, I: 0 },
+      R: { name: 'Accommodation', a: 0.02, b: 1, c: -55, d: 4, I: 0 },
+      S: { name: 'Inhibition-induced spiking', a: -0.02, b: -1, c: -60, d: 8, I: 80 },
+      T: { name: 'Inhibition-induced bursting', a: -0.026, b: -1, c: -45, d: 0, I: 80 },
+    };
+
+    const DT = 0.2;
+    const STEPS = 900;
+    const PHASE_X = { min: -100, max: 35 };
+    const PHASE_Y = { min: -70, max: 60 };
+    const TRACE_V = { min: -100, max: 35 };
+    const TRACE_U = { min: -60, max: 60 };
+    const TRACE_I = { min: -100, max: 100 };
+
+    const els = {
+      phasePlot: document.getElementById('phasePlot'),
+      vTrace: document.getElementById('vTrace'),
+      uTrace: document.getElementById('uTrace'),
+      iTrace: document.getElementById('iTrace'),
+      preset: document.getElementById('preset'),
+      playBtn: document.getElementById('playBtn'),
+      restartBtn: document.getElementById('restartBtn'),
+      exciteBtn: document.getElementById('exciteBtn'),
+      inhibitBtn: document.getElementById('inhibitBtn'),
+      behaviorLabel: document.getElementById('behaviorLabel'),
+      spikeCount: document.getElementById('spikeCount'),
+      burstCount: document.getElementById('burstCount'),
+      stateLabel: document.getElementById('stateLabel'),
+      liveExplanation: document.getElementById('liveExplanation'),
+      useCurrentNullcline: document.getElementById('useCurrentNullcline'),
+      showThreshold: document.getElementById('showThreshold'),
+      showVectorField: document.getElementById('showVectorField'),
+      fieldDensity: document.getElementById('fieldDensity'),
+      fieldDensityVal: document.getElementById('fieldDensityVal'),
+      speed: document.getElementById('speed'),
+      speedVal: document.getElementById('speedVal'),
+      nullclineEq1: document.getElementById('nullclineEq1'),
+      nullclineEq2: document.getElementById('nullclineEq2'),
+    };
+
+    const state = {
+      presetKey: 'A',
+      params: { ...PRESETS.A },
+      kick: 0,
+      play: true,
+      frame: 0,
+      speed: 1,
+      showCurrentNullcline: true,
+      showThreshold: true,
+      showVectorField: true,
+      fieldDensity: 14,
+      sim: null,
+      raf: null,
+      lastTs: 0,
+    };
+
+    function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+    function scaleX(v, width) {
+      return ((v - PHASE_X.min) / (PHASE_X.max - PHASE_X.min)) * width;
+    }
+    function scaleY(u, height) {
+      return height - ((u - PHASE_Y.min) / (PHASE_Y.max - PHASE_Y.min)) * height;
+    }
+    function traceX(t, width, tMax) {
+      return (t / tMax) * width;
+    }
+    function traceY(y, height, domain) {
+      return height - ((y - domain.min) / (domain.max - domain.min)) * height;
+    }
+
+    function pathFrom(points, sx, sy, xKey = 'x', yKey = 'y') {
+      if (!points.length) return '';
+      return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${sx(p[xKey]).toFixed(2)} ${sy(p[yKey]).toFixed(2)}`).join(' ');
+    }
+
+    function makeInputSchedule(mode, baseI, steps) {
+      const arr = Array.from({ length: steps }, () => baseI);
+      const pulse = (start, end, value) => {
+        for (let i = start; i < end && i < steps; i++) arr[i] = value;
+      };
+      switch (mode) {
+        case 'I': pulse(50, 120, baseI); pulse(120, steps, 0); break;
+        case 'J': pulse(80, 130, 2); pulse(130, steps, 0); break;
+        case 'K': pulse(80, 95, 0.65); pulse(200, 215, 0.65); pulse(320, 335, 0.65); pulse(440, 455, 0.65); break;
+        case 'L': pulse(80, 95, 9); pulse(110, 125, 9); pulse(300, 315, 9); pulse(330, 345, 9); break;
+        case 'M': pulse(80, 120, -15); pulse(120, steps, 0); break;
+        case 'N': pulse(80, 130, -15); pulse(130, steps, 0); break;
+        case 'O': pulse(100, 150, 2); pulse(300, 350, -6); break;
+        case 'P': pulse(80, 90, 40); pulse(520, 530, 40); break;
+        case 'Q': pulse(60, 90, 20); break;
+        case 'R':
+          for (let i = 0; i < steps; i++) arr[i] = Math.max(0, (i - 50) * 0.04 - (i > 280 ? 8 : 0));
+          break;
+        case 'S': pulse(60, 500, -80); pulse(500, steps, 0); break;
+        case 'T': pulse(60, 500, -80); pulse(500, steps, 0); break;
+        case 'G':
+        case 'H':
+          for (let i = 0; i < steps; i++) arr[i] = Math.max(0, (i - 60) * 0.03);
+          break;
+        default: pulse(60, steps, baseI); break;
+      }
+      return arr;
+    }
+
+    function simulate(params, presetKey, options = {}) {
+      const { a, b, c, d, I } = params;
+      const steps = options.steps ?? STEPS;
+      const dt = options.dt ?? DT;
+      const schedule = makeInputSchedule(presetKey, I, steps);
+      let v = (options.v0 ?? -70) + (options.externalKick ?? 0);
+      let u = options.u0 ?? -20;
+      const rows = [];
+      const spikeTimes = [];
+
+      for (let k = 0; k < steps; k++) {
+        const t = k * dt;
+        const input = schedule[k];
+        const dv = 0.04 * v * v + 5 * v + 140 - u + input;
+        const du = a * (b * v - u);
+        v += dt * dv;
+        u += dt * du;
+        if (v > 30) {
+          rows.push({ t, v: 31, u, input, spiked: true });
+          v = c;
+          u += d;
+          spikeTimes.push(t);
+        }
+        rows.push({ t: t + dt, v, u, input, spiked: false });
+      }
+      return { rows, spikeTimes };
+    }
+
+    function countBursts(spikeTimes, maxGap = 8) {
+      if (!spikeTimes.length) return 0;
+      let bursts = 1;
+      for (let i = 1; i < spikeTimes.length; i++) {
+        if (spikeTimes[i] - spikeTimes[i - 1] > maxGap) bursts++;
+      }
+      return bursts;
+    }
+
+    function classifyBehavior(spikeTimes) {
+      if (spikeTimes.length === 0) return 'No spikes in this window';
+      if (spikeTimes.length === 1) return 'Single spike';
+      const isi = [];
+      for (let i = 1; i < spikeTimes.length; i++) isi.push(spikeTimes[i] - spikeTimes[i - 1]);
+      const first = isi[0];
+      const last = isi[isi.length - 1];
+      const mean = isi.reduce((s, x) => s + x, 0) / isi.length;
+      const bursts = countBursts(spikeTimes);
+      if (bursts >= 2) return 'Bursting / grouped spikes';
+      if (last > first * 1.5) return 'Adapting spiking';
+      if (Math.abs(last - first) < 1.5) return 'Roughly tonic spiking';
+      if (mean > 20) return 'Sparse / delayed spiking';
+      return 'Mixed spiking pattern';
+    }
+
+    function thresholdPoint(b, Ieff) {
+      const D = (5 - b) ** 2 - 0.16 * (140 + Ieff);
+      if (D < 0) return null;
+      const v = (-(5 - b) + Math.sqrt(D)) / 0.08;
+      return { v, u: b * v };
+    }
+
+    function findFixedPoints(b, Ieff) {
+      const A = 0.04;
+      const B = 5 - b;
+      const C = 140 + Ieff;
+      const D = B * B - 4 * A * C;
+      if (D < 0) return [];
+      const v1 = (-B + Math.sqrt(D)) / (2 * A);
+      const v2 = (-B - Math.sqrt(D)) / (2 * A);
+      return [v1, v2].map(v => ({ v, u: b * v }));
+    }
+
+    function rebuildSimulation() {
+      state.sim = simulate(state.params, state.presetKey, { externalKick: state.kick });
+      state.frame = 0;
+      updateReadouts();
+      drawAll();
+    }
+
+    function updateReadouts() {
+      const p = state.params;
+      ['a','b','c','d','I'].forEach(key => {
+        document.getElementById(key).value = p[key];
+        document.getElementById(key + 'Val').textContent = key === 'c' ? Number(p[key]).toFixed(0) : Number(p[key]).toFixed(2);
+      });
+      els.speed.value = state.speed;
+      els.speedVal.textContent = `${state.speed.toFixed(1)}×`;
+      els.useCurrentNullcline.checked = state.showCurrentNullcline;
+      els.showThreshold.checked = state.showThreshold;
+      els.showVectorField.checked = state.showVectorField;
+      els.fieldDensity.value = state.fieldDensity;
+      els.fieldDensityVal.textContent = `${state.fieldDensity}`;
+      els.nullclineEq1.textContent = `u = 0.04v² + 5v + 140${state.showCurrentNullcline ? ` + ${state.params.I.toFixed(2)}` : ''}`;
+      els.nullclineEq2.textContent = `u = ${state.params.b.toFixed(2)}v`;
+      els.playBtn.textContent = state.play ? 'Pause' : 'Play';
+    }
+
+    function visibleRows() {
+      if (!state.sim) return [];
+      return state.sim.rows.slice(0, Math.max(2, state.frame + 1));
+    }
+
+    function currentRow() {
+      const rows = visibleRows();
+      return rows[rows.length - 1] || { v: -70, u: -20, input: 0, t: 0 };
+    }
+
+
+    function fieldAt(v, u, params, Ieff) {
+      const dv = 0.04 * v * v + 5 * v + 140 - u + Ieff;
+      const du = params.a * (params.b * v - u);
+      return { dv, du, mag: Math.hypot(dv, du) };
+    }
+
+    function vectorFieldArrows(params, width, height, Ieff) {
+      if (!state.showVectorField) return '';
+      const xCount = state.fieldDensity + 10;
+      const yCount = Math.max(8, Math.round(state.fieldDensity * 0.75));
+      const padX = 7;
+      const padY = 7;
+      const maxLog = Math.log(1 + 120);
+      let html = '';
+
+      for (let ix = 0; ix < xCount; ix++) {
+        const v = PHASE_X.min + ((ix + 0.5) / xCount) * (PHASE_X.max - PHASE_X.min);
+        for (let iy = 0; iy < yCount; iy++) {
+          const u = PHASE_Y.min + ((iy + 0.5) / yCount) * (PHASE_Y.max - PHASE_Y.min);
+          const { dv, du, mag } = fieldAt(v, u, params, Ieff);
+          if (!Number.isFinite(mag) || mag < 1e-9) continue;
+
+          const px = scaleX(v, width);
+          const py = scaleY(u, height);
+          const ux = dv / mag;
+          const uy = -du / mag;
+          const length = 4 + 10 * (Math.log(1 + Math.min(mag, 120)) / maxLog);
+          const x2 = clamp(px + ux * length, padX, width - padX);
+          const y2 = clamp(py + uy * length, padY, height - padY);
+          const arrowSize = 2.8;
+          const bx = x2 - ux * arrowSize;
+          const by = y2 - uy * arrowSize;
+          const leftX = bx - uy * arrowSize * 0.9;
+          const leftY = by + ux * arrowSize * 0.9;
+          const rightX = bx + uy * arrowSize * 0.9;
+          const rightY = by - ux * arrowSize * 0.9;
+          html += `<line x1="${px.toFixed(2)}" y1="${py.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="#94a3b8" stroke-width="1.05" opacity="0.9" />`;
+          html += `<path d="M ${x2.toFixed(2)} ${y2.toFixed(2)} L ${leftX.toFixed(2)} ${leftY.toFixed(2)} L ${rightX.toFixed(2)} ${rightY.toFixed(2)} Z" fill="#94a3b8" opacity="0.9" />`;
+        }
+      }
+      return html;
+    }
+
+    function drawPhasePlot() {
+      const svg = els.phasePlot;
+      const width = 760, height = 420;
+      const rows = visibleRows();
+      const cur = currentRow();
+      const Ieff = state.showCurrentNullcline ? state.params.I : 0;
+      const fixed = findFixedPoints(state.params.b, Ieff);
+      const threshold = thresholdPoint(state.params.b, Ieff);
+
+      const vv = Array.from({ length: 220 }, (_, i) => PHASE_X.min + (i / 219) * (PHASE_X.max - PHASE_X.min));
+      const vNull = vv.map(v => ({ x: v, y: 0.04 * v * v + 5 * v + 140 + Ieff }));
+      const uNull = vv.map(v => ({ x: v, y: state.params.b * v }));
+      const traj = rows.filter(r => r.v <= 31).map(r => ({ x: r.v, y: r.u }));
+
+      const axisX = scaleX(0, width), axisY = scaleY(0, height);
+      const vNullPath = pathFrom(vNull, x => scaleX(x, width), y => scaleY(y, height));
+      const uNullPath = pathFrom(uNull, x => scaleX(x, width), y => scaleY(y, height));
+      const trajPath = pathFrom(traj, x => scaleX(x, width), y => scaleY(y, height));
+
+      let html = '';
+      html += `<line x1="${axisX}" x2="${axisX}" y1="0" y2="${height}" stroke="#cbd5e1" stroke-width="1" />`;
+      html += `<line x1="0" x2="${width}" y1="${axisY}" y2="${axisY}" stroke="#cbd5e1" stroke-width="1" />`;
+      html += vectorFieldArrows(state.params, width, height, Ieff);
+      html += `<path d="${vNullPath}" fill="none" stroke="#2563eb" stroke-width="2.5" />`;
+      html += `<path d="${uNullPath}" fill="none" stroke="#16a34a" stroke-width="2.5" />`;
+      html += `<line x1="${scaleX(state.params.c, width)}" x2="${scaleX(state.params.c, width)}" y1="0" y2="${height}" stroke="#f59e0b" stroke-width="2" stroke-dasharray="7 6" />`;
+      fixed.forEach(fp => {
+        html += `<circle cx="${scaleX(fp.v, width)}" cy="${scaleY(fp.u, height)}" r="4.5" fill="#0f172a" opacity="0.75" />`;
+      });
+      if (state.showThreshold && threshold) {
+        html += `<circle cx="${scaleX(threshold.v, width)}" cy="${scaleY(threshold.u, height)}" r="6" fill="#7c3aed" />`;
+      }
+      html += `<path d="${trajPath}" fill="none" stroke="#111827" stroke-width="2.2" />`;
+      html += `<circle cx="${scaleX(cur.v, width)}" cy="${scaleY(cur.u, height)}" r="6" fill="#ef4444" />`;
+      html += `<text x="18" y="24" fill="#334155" font-size="18">phase portrait</text>`;
+      html += `<text x="18" y="402" fill="#64748b" font-size="14">v (membrane potential)</text>`;
+      html += `<text x="620" y="24" fill="#64748b" font-size="14">u (recovery)</text>`;
+      svg.innerHTML = html;
+    }
+
+    function drawTrace(svg, key, domain, viewH) {
+      const width = 760;
+      const rows = visibleRows();
+      const tMax = state.sim.rows[state.sim.rows.length - 1].t || 1;
+      const pts = rows.map(r => ({ x: r.t, y: r[key] }));
+      const d = pathFrom(pts, x => traceX(x, width, tMax), y => traceY(y, viewH, domain));
+      svg.innerHTML = `<path d="${d}" fill="none" stroke="#111827" stroke-width="2" />`;
+    }
+
+    function updateTextInterpretation() {
+      const cur = currentRow();
+      const vNull = 0.04 * cur.v * cur.v + 5 * cur.v + 140 + state.params.I;
+      const uNull = state.params.b * cur.v;
+      const aboveParabola = cur.u > vNull;
+      const aboveLine = cur.u > uNull;
+      const spikes = state.sim.spikeTimes.length;
+      const bursts = countBursts(state.sim.spikeTimes);
+      const bits = [];
+      bits.push(`At the current point, v = ${cur.v.toFixed(2)} and u = ${cur.u.toFixed(2)}.`);
+      bits.push(aboveParabola
+        ? 'The state is above the voltage nullcline, so dv/dt is negative and the voltage tends to move left and downward.'
+        : 'The state is below the voltage nullcline, so dv/dt is positive and the voltage tends to move right and upward.');
+      bits.push(aboveLine
+        ? 'The state is above the recovery nullcline, so du/dt is negative and the slow variable tends to decrease.'
+        : 'The state is below the recovery nullcline, so du/dt is positive and the slow variable tends to increase.');
+      bits.push(spikes > 0
+        ? `This run produced ${spikes} spikes in the current window, grouped into about ${bursts} burst group${bursts === 1 ? '' : 's'}.`
+        : 'This run did not reach spike threshold in the current window.');
+      els.liveExplanation.textContent = bits.join(' ');
+      els.behaviorLabel.textContent = classifyBehavior(state.sim.spikeTimes);
+      els.spikeCount.textContent = String(spikes);
+      els.burstCount.textContent = String(bursts);
+      els.stateLabel.textContent = `v = ${cur.v.toFixed(2)}, u = ${cur.u.toFixed(2)}`;
+    }
+
+    function drawAll() {
+      drawPhasePlot();
+      drawTrace(els.vTrace, 'v', TRACE_V, 220);
+      drawTrace(els.uTrace, 'u', TRACE_U, 180);
+      drawTrace(els.iTrace, 'input', TRACE_I, 140);
+      updateTextInterpretation();
+    }
+
+    function tick(ts) {
+      if (!state.play) return;
+      if (!state.lastTs) state.lastTs = ts;
+      if (ts - state.lastTs > 20 / state.speed) {
+        state.frame = Math.min(state.frame + 2, state.sim.rows.length - 1);
+        drawAll();
+        state.lastTs = ts;
+      }
+      state.raf = requestAnimationFrame(tick);
+    }
+
+    function restartAnimation() {
+      state.frame = 0;
+      state.lastTs = 0;
+      drawAll();
+    }
+
+    function startStopLoop() {
+      cancelAnimationFrame(state.raf);
+      if (state.play) state.raf = requestAnimationFrame(tick);
+    }
+
+    function applyPreset(key) {
+      state.presetKey = key;
+      state.params = { ...PRESETS[key] };
+      state.kick = 0;
+      updateReadouts();
+      rebuildSimulation();
+      startStopLoop();
+    }
+
+    function bindControls() {
+      Object.entries(PRESETS).forEach(([key, value]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${key}: ${value.name}`;
+        els.preset.appendChild(opt);
+      });
+      els.preset.value = state.presetKey;
+      els.preset.addEventListener('change', e => applyPreset(e.target.value));
+
+      ['a','b','c','d','I'].forEach(key => {
+        document.getElementById(key).addEventListener('input', e => {
+          state.params[key] = Number(e.target.value);
+          updateReadouts();
+          rebuildSimulation();
+        });
+      });
+
+      els.playBtn.addEventListener('click', () => {
+        state.play = !state.play;
+        updateReadouts();
+        startStopLoop();
+      });
+      els.restartBtn.addEventListener('click', restartAnimation);
+      els.exciteBtn.addEventListener('click', () => {
+        state.kick += 10;
+        rebuildSimulation();
+      });
+      els.inhibitBtn.addEventListener('click', () => {
+        state.kick -= 10;
+        rebuildSimulation();
+      });
+      els.speed.addEventListener('input', e => {
+        state.speed = Number(e.target.value);
+        updateReadouts();
+      });
+      els.useCurrentNullcline.addEventListener('change', e => {
+        state.showCurrentNullcline = e.target.checked;
+        updateReadouts();
+        drawAll();
+      });
+      els.showThreshold.addEventListener('change', e => {
+        state.showThreshold = e.target.checked;
+        updateReadouts();
+        drawAll();
+      });
+      els.showVectorField.addEventListener('change', e => {
+        state.showVectorField = e.target.checked;
+        updateReadouts();
+        drawAll();
+      });
+      els.fieldDensity.addEventListener('input', e => {
+        state.fieldDensity = Number(e.target.value);
+        updateReadouts();
+        drawAll();
+      });
+
+      document.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const tab = btn.dataset.tab;
+          document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+          document.getElementById(`panel-${tab}`).classList.add('active');
+        });
+      });
+    }
+
+    bindControls();
+    updateReadouts();
+    rebuildSimulation();
+    startStopLoop();
+  </script>
+</body>
+</html>
