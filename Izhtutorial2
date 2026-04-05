@@ -1,0 +1,627 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circuit ↔ Izhikevich Two-Way Calculator</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --line: #dbe2ea;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #111827;
+      --soft: #eef2ff;
+      --good: #dcfce7;
+      --warn: #fef3c7;
+      --bad: #fee2e2;
+      --goodText: #166534;
+      --warnText: #92400e;
+      --badText: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 24px;
+    }
+    .hero, .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+    }
+    .hero { padding: 24px; }
+    .hero-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1.4fr 0.9fr;
+      align-items: start;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+    }
+    .lead, .small, .desc {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .note {
+      margin-top: 16px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 18px;
+      padding: 16px;
+      line-height: 1.6;
+    }
+    .button-row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      align-content: start;
+    }
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .primary { background: var(--accent); color: white; }
+    .secondary { background: white; color: var(--text); border: 1px solid var(--line); }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .main-grid {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 1.35fr 1fr;
+      align-items: start;
+    }
+    .card-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-body { padding: 18px; }
+    .group-stack { display: grid; gap: 20px; }
+    .var-list { display: grid; gap: 10px; }
+    .var-row {
+      display: grid;
+      grid-template-columns: 1.35fr 0.8fr 0.35fr 0.35fr;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .label { font-weight: 700; font-size: 14px; }
+    .desc { font-size: 12px; margin-top: 4px; }
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: white;
+    }
+    .unit {
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      text-align: center;
+    }
+    .lock {
+      display: flex;
+      align-items: center;
+      justify-content: end;
+      gap: 8px;
+      min-height: 42px;
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: white;
+    }
+    .metric .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .metric .v { margin-top: 6px; font-size: 18px; font-weight: 800; }
+    .metric .u { font-size: 12px; color: var(--muted); }
+    .res-list { display: grid; gap: 10px; }
+    .res {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: white;
+    }
+    .res-top { display: flex; gap: 12px; justify-content: space-between; align-items: start; }
+    .badge {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .good { background: var(--good); color: var(--goodText); }
+    .warn { background: var(--warn); color: var(--warnText); }
+    .bad { background: var(--bad); color: var(--badText); }
+    .formula { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .lr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .tiny {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .footer-note {
+      line-height: 1.7;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    @media (max-width: 1100px) {
+      .hero-grid, .main-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 850px) {
+      .var-row { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: 1fr; }
+      .button-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <h1 class="title">Circuit ↔ Izhikevich Two-Way Calculator</h1>
+          <div class="lead">
+            This standalone webpage solves a first-order local mapping between the MOSFET circuit and the Izhikevich model.
+            You can lock any variables you trust, leave the rest unlocked, and solve for the unknowns.
+            The continuous-time part comes from the capacitor node equations, while the reset and comparator are handled by an explicit first-order pulse model.
+          </div>
+          <div class="note">
+            <strong>Comparator refinement in this version:</strong> instead of using only a single bias-current estimate, the comparator now has a small threshold-overdrive and regeneration model.
+            The trip delay shortens when <span class="mono">V − Vth</span> is larger, it is accelerated by comparator bias current, and the M14 assist is represented as a regeneration boost that lengthens the VB pulse and sharpens the trip. This is still an engineering approximation rather than a full transistor-level derivation, but it is much closer to the qualitative behavior described in the paper.
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="solveBtn">Solve unlocked variables</button>
+          <button class="secondary" id="resetBtn">Reset defaults</button>
+          <div class="pill"><strong>Status</strong><div id="status" class="small">Set the locked variables, then solve for the unlocked ones.</div></div>
+          <div class="pill"><strong>How to use</strong><div class="small">Lock your known device, scaling, or target parameters. Leave unknown hardware controls unlocked. Then solve.</div></div>
+        </div>
+      </div>
+    </section><section class="main-grid">
+  <div class="group-stack" id="leftCol"></div>
+  <div class="group-stack">
+    <div class="card">
+      <div class="card-head">Derived branch quantities</div>
+      <div class="card-body"><div class="metric-grid" id="derivedMetrics"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">Effective Izhikevich-side coefficients</div>
+      <div class="card-body"><div class="metric-grid" id="effMetrics"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">Constraint residuals</div>
+      <div class="card-body"><div class="res-list" id="residualList"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">Model notes</div>
+      <div class="card-body footer-note">
+        <p><strong>Continuous-time core:</strong> the calculator matches the local circuit-side coefficients of the membrane and slow-variable equations to the Izhikevich-side coefficients.</p>
+        <p><strong>Comparator block:</strong> the comparator uses a threshold-overdrive trip model with bias-current acceleration and an M14-assisted regeneration factor. It predicts a trip delay, a pulse width for VA and VB, and the resulting overshoot above <span class="mono">Vth</span>.</p>
+        <p><strong>Reset behavior:</strong> M5 reset sufficiency is checked through charge balance on <span class="mono">Cv</span>, and M8 injection is used to generate the circuit-side <span class="mono">d</span> behavior from pulse area on <span class="mono">Cu</span>.</p>
+        <p><strong>Scaling:</strong> the standard Izhikevich model uses millivolt and millisecond coefficients, while the circuit uses volt and second scales. The variables <span class="mono">sV</span>, <span class="mono">sU</span>, and <span class="mono">sT</span> convert between those domains.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+  </div>  <script>
+    const VARS = [
+      { key: "a", label: "Target a", group: "Izhikevich targets", unit: "1/ms", value: 0.02, min: 1e-8, max: 100, desc: "Recovery time-scale target in the model." },
+      { key: "b", label: "Target b", group: "Izhikevich targets", unit: "1", value: 0.2, min: -100, max: 100, desc: "Recovery sensitivity target in the model." },
+      { key: "c", label: "Target c", group: "Izhikevich targets", unit: "mV", value: -65, min: -2000, max: 2000, desc: "Reset voltage target in model coordinates." },
+      { key: "d", label: "Target d", group: "Izhikevich targets", unit: "mV", value: 8, min: -2000, max: 2000, desc: "Post-spike jump target in model coordinates." },
+      { key: "IModel", label: "Target I", group: "Izhikevich targets", unit: "mV/ms", value: 10, min: -5000, max: 5000, desc: "Input term target in the membrane equation." },
+      { key: "q2Target", label: "Target quadratic coeff.", group: "Izhikevich targets", unit: "1/(mV·ms)", value: 0.04, min: 1e-8, max: 100, desc: "Usually 0.04 in the standard model." },
+      { key: "q1Target", label: "Target linear coeff.", group: "Izhikevich targets", unit: "1/ms", value: 5, min: -1000, max: 1000, desc: "Usually 5 in the standard model." },
+      { key: "spikeTarget", label: "Target spike level", group: "Izhikevich targets", unit: "mV", value: 30, min: 1, max: 5000, desc: "Model spike level used to align the comparator/reset peak." },
+
+      { key: "sV", label: "Voltage scale sV", group: "Scaling and operating point", unit: "mV/V", value: 30, min: 1e-6, max: 100000, desc: "Model membrane-voltage units per circuit volt." },
+      { key: "sU", label: "Slow-variable scale sU", group: "Scaling and operating point", unit: "mV/V", value: 30, min: 1e-6, max: 100000, desc: "Model slow-variable units per circuit volt." },
+      { key: "sT", label: "Time scale sT", group: "Scaling and operating point", unit: "ms/s", value: 1000, min: 1e-6, max: 1e12, desc: "Model time units per physical second." },
+      { key: "V0", label: "Operating point V0", group: "Scaling and operating point", unit: "V", value: 0.35, min: -20, max: 50, desc: "Reference membrane voltage used for the local fit." },
+      { key: "U0", label: "Operating point U0", group: "Scaling and operating point", unit: "V", value: 0.65, min: -20, max: 50, desc: "Reference slow-variable voltage used for the local fit." },
+
+      { key: "Cv", label: "Cv", group: "Continuous-time hardware", unit: "F", value: 2.2e-7, min: 1e-18, max: 10, desc: "Membrane capacitance." },
+      { key: "Cu", label: "Cu", group: "Continuous-time hardware", unit: "F", value: 2.2e-5, min: 1e-18, max: 10, desc: "Slow-variable capacitance." },
+      { key: "kM1", label: "kM1", group: "Continuous-time hardware", unit: "A/V²", value: 2.66e-4, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the M1/M3 positive-feedback branch." },
+      { key: "kM2", label: "kM2", group: "Continuous-time hardware", unit: "A/V²", value: 8.5e-5, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the M2 mirror reference branch." },
+      { key: "kM4", label: "kM4", group: "Continuous-time hardware", unit: "A/V²", value: 2.66e-4, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the membrane leak branch." },
+      { key: "kM6", label: "kM6", group: "Continuous-time hardware", unit: "A/V²", value: 2.66e-4, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the slow-variable leak branch." },
+      { key: "kM7", label: "kM7", group: "Continuous-time hardware", unit: "A/V²", value: 8.5e-5, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the V→U coupling branch." },
+      { key: "alpha", label: "alpha", group: "Continuous-time hardware", unit: "1", value: 1, min: 1e-8, max: 1000, desc: "Operating-region factor for the positive-feedback branch." },
+      { key: "beta", label: "beta", group: "Continuous-time hardware", unit: "1", value: 1, min: 1e-8, max: 1000, desc: "Operating-region factor for the membrane leak branch." },
+      { key: "gamma", label: "gamma", group: "Continuous-time hardware", unit: "1", value: 1, min: 1e-8, max: 1000, desc: "Operating-region factor for the slow-variable leak branch." },
+      { key: "Iin", label: "Physical input current", group: "Continuous-time hardware", unit: "A", value: 2e-7, min: -1, max: 1, desc: "Injected membrane current in the physical circuit." },
+
+      { key: "VtM1", label: "VtM1", group: "Thresholds and reset devices", unit: "V", value: 0.59, min: -20, max: 20, desc: "Effective threshold for the positive-feedback branch." },
+      { key: "VtM4", label: "VtM4", group: "Thresholds and reset devices", unit: "V", value: 0.59, min: -20, max: 20, desc: "Effective threshold for the membrane leak branch." },
+      { key: "VtM6", label: "VtM6", group: "Thresholds and reset devices", unit: "V", value: 0.59, min: -20, max: 20, desc: "Effective threshold for the slow-variable leak branch." },
+      { key: "VtM5", label: "VtM5", group: "Thresholds and reset devices", unit: "V", value: 0.59, min: -20, max: 20, desc: "Effective threshold for the membrane reset switch approximation." },
+      { key: "VtM8", label: "VtM8", group: "Thresholds and reset devices", unit: "V", value: 0.69, min: 0, max: 20, desc: "Absolute threshold magnitude for the M8 charge-injection approximation." },
+      { key: "kM5", label: "kM5", group: "Thresholds and reset devices", unit: "A/V²", value: 2.66e-4, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the M5 reset switch." },
+      { key: "kM8", label: "kM8", group: "Thresholds and reset devices", unit: "A/V²", value: 8.5e-5, min: 1e-14, max: 10, desc: "Effective transconductance parameter for the M8 charge-injection switch." },
+      { key: "Vc", label: "Vc", group: "Thresholds and reset devices", unit: "V", value: 0.1, min: -20, max: 20, desc: "Membrane reset level." },
+      { key: "Vd", label: "Vd", group: "Thresholds and reset devices", unit: "V", value: 1.7, min: -20, max: 20, desc: "Charge-injection rail for M8." },
+
+      { key: "Vth", label: "Vth", group: "Comparator and pulse model", unit: "V", value: 1.7, min: -20, max: 50, desc: "Comparator trigger threshold at the membrane node." },
+      { key: "Vbias", label: "Vbias", group: "Comparator and pulse model", unit: "V", value: 0.6, min: -20, max: 50, desc: "Comparator bias voltage controlling available comparator current." },
+      { key: "Vdd", label: "Vdd", group: "Comparator and pulse model", unit: "V", value: 3.3, min: 0.1, max: 100, desc: "Supply voltage and peak clamp for the first-order reset model." },
+      { key: "kCmp", label: "kCmp", group: "Comparator and pulse model", unit: "A/V²", value: 1e-4, min: 1e-14, max: 10, desc: "Effective comparator transconductance lump." },
+      { key: "VtCmp", label: "VtCmp", group: "Comparator and pulse model", unit: "V", value: 0.59, min: -20, max: 20, desc: "Effective comparator threshold for tail-current generation." },
+      { key: "gTrip", label: "Trip sensitivity", group: "Comparator and pulse model", unit: "1/V", value: 14, min: 1e-6, max: 1e6, desc: "How strongly membrane overdrive above Vth speeds up comparator trip." },
+      { key: "cCmp", label: "Comparator lumped capacitance", group: "Comparator and pulse model", unit: "F", value: 2e-11, min: 1e-18, max: 1, desc: "Lumped capacitance controlling comparator delay." },
+      { key: "kRegen", label: "M14 regeneration boost", group: "Comparator and pulse model", unit: "1", value: 1.8, min: 0, max: 1e4, desc: "Extra gain term that lengthens VB and sharpens the trip when the comparator is active." },
+      { key: "tauVAmin", label: "Minimum VA width", group: "Comparator and pulse model", unit: "s", value: 3e-7, min: 1e-12, max: 1, desc: "Minimum membrane reset pulse width even at strong trip." },
+      { key: "tauVBmin", label: "Minimum VB width", group: "Comparator and pulse model", unit: "s", value: 2e-7, min: 1e-12, max: 1, desc: "Minimum slow-variable injection pulse width." },
+      { key: "kPulseVA", label: "VA width scale", group: "Comparator and pulse model", unit: "s", value: 1.2e-6, min: 1e-12, max: 1, desc: "How much the comparator dynamics stretch the VA pulse." },
+      { key: "kPulseVB", label: "VB width scale", group: "Comparator and pulse model", unit: "s", value: 1.0e-6, min: 1e-12, max: 1, desc: "How much the comparator dynamics stretch the VB pulse." },
+    ];
+
+    const DEFAULT_LOCKS = Object.fromEntries(VARS.map(v => [v.key, [
+      "a", "b", "c", "d", "IModel", "q2Target", "q1Target", "spikeTarget",
+      "kM1", "kM2", "kM4", "kM6", "kM7", "VtM1", "VtM4", "VtM6", "VtM5", "VtM8",
+      "kM5", "kM8", "kCmp", "VtCmp", "alpha", "beta", "gamma", "sV", "sU", "sT", "V0", "U0"
+    ].includes(v.key)]));
+
+    const EPS = 1e-18;
+    const sq = x => x * x;
+    const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+    const defaults = Object.fromEntries(VARS.map(v => [v.key, v.value]));
+    let state = structuredClone(defaults);
+    let locks = structuredClone(DEFAULT_LOCKS);
+
+    function fmt(x) {
+      if (!Number.isFinite(x)) return "—";
+      const ax = Math.abs(x);
+      if (ax === 0) return "0";
+      if (ax >= 1e4 || ax < 1e-3) return x.toExponential(4);
+      return x.toFixed(6).replace(/\.?0+$/, "");
+    }
+
+    function sigmoid(z) {
+      if (z > 40) return 1;
+      if (z < -40) return 0;
+      return 1 / (1 + Math.exp(-z));
+    }
+
+    function derive(p) {
+      const x0 = p.V0 - p.VtM1;
+      const y0 = p.U0 - p.VtM6;
+      const yMem = p.U0 - p.VtM4;
+
+      const A = (p.alpha * p.kM1) / (2 * Math.max(p.Cv, EPS));
+      const B = (p.beta * p.kM4) / (2 * Math.max(p.Cv, EPS));
+      const mirrorRatio = p.kM7 / Math.max(p.kM2, EPS);
+      const C = (p.alpha * p.kM1 * mirrorRatio) / (2 * Math.max(p.Cu, EPS));
+      const E = (p.gamma * p.kM6) / (2 * Math.max(p.Cu, EPS));
+
+      const q2Eff = A / Math.max(p.sV * p.sT, EPS);
+      const q1Eff = (2 * A * x0) / Math.max(p.sT, EPS);
+      const q0Eff = (p.sV / Math.max(p.sT, EPS)) * (A * x0 * x0 - B * y0 * y0 + p.Iin / Math.max(p.Cv, EPS));
+      const uCoeffEff = (p.sV / Math.max(p.sT, EPS)) * ((2 * B * y0) / Math.max(p.sU, EPS));
+      const aEff = (2 * E * y0) / Math.max(p.sT, EPS);
+      const abEff = (p.sU / Math.max(p.sV, EPS)) * ((2 * C * x0) / Math.max(p.sT, EPS));
+      const bEff = abEff / Math.max(Math.abs(aEff), EPS) * Math.sign(aEff || 1);
+      const cEff = p.sV * (p.Vc - p.V0);
+
+      // Comparator refinement:
+      // 1) Tail current from Vbias.
+      // 2) Trip acceleration from membrane overdrive above Vth.
+      // 3) M14 assist as a regeneration factor that boosts pulse energy when comparator is active.
+      const Itail = 0.5 * p.kCmp * sq(Math.max(p.Vbias - p.VtCmp, 0));
+      const dVdtAtVth = A * sq(Math.max(p.Vth - p.VtM1, 0)) - B * sq(Math.max(yMem, 0)) + p.Iin / Math.max(p.Cv, EPS);
+      const overdrive = Math.max((p.V0 + Math.max(dVdtAtVth, 0) * 1e-9) - p.Vth, 0);
+      const tripFactor = 1 + p.gTrip * Math.max(overdrive, 1e-6);
+      const regen = 1 + p.kRegen * sigmoid((p.V0 - p.Vth) * p.gTrip);
+      const gCmpEff = Math.max(Itail / Math.max(0.1, p.Vdd), 0) * tripFactor * regen;
+      const tauTrip = Math.max(p.cCmp / Math.max(gCmpEff, EPS), 1e-12);
+
+      const VpeakRaw = p.Vth + Math.max(dVdtAtVth, 0) * tauTrip;
+      const Vpeak = clamp(VpeakRaw, 0, p.Vdd);
+      const peakModel = p.sV * (Vpeak - p.V0);
+
+      const tauVA = p.tauVAmin + p.kPulseVA * (regen / Math.max(tripFactor, 1e-6));
+      const tauVB = p.tauVBmin + p.kPulseVB * regen;
+
+      const vaHigh = p.Vdd;
+      const vbLow = Math.max(0, p.Vdd - regen * Math.max(p.Vdd - p.Vbias, 0));
+
+      const I5on = 0.5 * p.kM5 * sq(Math.max((vaHigh - p.Vc) - p.VtM5, 0));
+      const resetChargeNeed = Math.max(p.Cv, EPS) * Math.max(Vpeak - p.Vc, 0);
+      const resetChargeAvail = I5on * Math.max(tauVA, EPS);
+
+      // For PMOS-like M8 injection we use |Vsg|-|Vtp| with source near Vd and gate driven low by VB.
+      const Vsg8 = Math.max(p.Vd - vbLow, 0);
+      const I8on = 0.5 * p.kM8 * sq(Math.max(Vsg8 - p.VtM8, 0));
+      const deltaU = (I8on * Math.max(tauVB, EPS)) / Math.max(p.Cu, EPS);
+      const dEff = p.sU * deltaU;
+
+      return {
+        x0, y0, yMem, A, B, C, E, mirrorRatio,
+        q2Eff, q1Eff, q0Eff, uCoeffEff,
+        aEff, abEff, bEff, cEff,
+        Itail, gCmpEff, tripFactor, regen, tauTrip, dVdtAtVth, Vpeak, peakModel,
+        tauVA, tauVB, vaHigh, vbLow,
+        I5on, resetChargeNeed, resetChargeAvail,
+        I8on, deltaU, dEff,
+      };
+    }
+
+    function residuals(p) {
+      const d = derive(p);
+      const list = [
+        { name: "Quadratic membrane coefficient", formula: "A / (sV·sT) = q2Target", lhs: d.q2Eff, rhs: p.q2Target, residual: (d.q2Eff - p.q2Target) / Math.max(Math.abs(p.q2Target), 1e-9) },
+        { name: "Linear membrane coefficient", formula: "2·A·x0 / sT = q1Target", lhs: d.q1Eff, rhs: p.q1Target, residual: (d.q1Eff - p.q1Target) / Math.max(Math.abs(p.q1Target), 1e-9) },
+        { name: "u coefficient normalization", formula: "(sV / sT)·(2·B·y0 / sU) = 1", lhs: d.uCoeffEff, rhs: 1, residual: d.uCoeffEff - 1 },
+        { name: "Constant membrane term", formula: "(sV / sT)·(A·x0² − B·y0² + Iin/Cv) = 140 + IModel", lhs: d.q0Eff, rhs: 140 + p.IModel, residual: (d.q0Eff - (140 + p.IModel)) / Math.max(Math.abs(140 + p.IModel), 1) },
+        { name: "a mapping", formula: "2·E·y0 / sT = a", lhs: d.aEff, rhs: p.a, residual: (d.aEff - p.a) / Math.max(Math.abs(p.a), 1e-9) },
+        { name: "b mapping", formula: "[(sU/sV)·(2·C·x0/sT)] / aEff = b", lhs: d.bEff, rhs: p.b, residual: (d.bEff - p.b) / Math.max(Math.abs(p.b), 1e-9) },
+        { name: "c mapping", formula: "sV·(Vc − V0) = c", lhs: d.cEff, rhs: p.c, residual: (d.cEff - p.c) / Math.max(Math.abs(p.c), 1) },
+        { name: "d mapping", formula: "sU·(I8on·tauVB/Cu) = d", lhs: d.dEff, rhs: p.d, residual: (d.dEff - p.d) / Math.max(Math.abs(p.d), 1) },
+        { name: "Spike level alignment", formula: "sV·(Vpeak − V0) = spikeTarget", lhs: d.peakModel, rhs: p.spikeTarget, residual: (d.peakModel - p.spikeTarget) / Math.max(Math.abs(p.spikeTarget), 1) },
+        { name: "Reset charge sufficiency", formula: "I5on·tauVA ≥ Cv·(Vpeak − Vc)", lhs: d.resetChargeAvail, rhs: d.resetChargeNeed, residual: Math.min(0, (d.resetChargeAvail - d.resetChargeNeed) / Math.max(Math.abs(d.resetChargeNeed), 1e-18)), inequality: true }
+      ];
+      return { list, d };
+    }
+
+    function objective(p) {
+      const { list, d } = residuals(p);
+      let loss = list.reduce((acc, r) => acc + r.residual * r.residual, 0);
+      const penalties = [];
+      if (p.Cv <= 0) penalties.push(10 + Math.abs(p.Cv));
+      if (p.Cu <= 0) penalties.push(10 + Math.abs(p.Cu));
+      if (p.Vdd <= 0) penalties.push(10 + Math.abs(p.Vdd));
+      if (p.Vc >= p.Vth) penalties.push((p.Vc - p.Vth + 1e-3) * 50);
+      if (p.Vth >= p.Vdd) penalties.push((p.Vth - p.Vdd + 1e-3) * 50);
+      if (p.Vbias >= p.Vdd) penalties.push((p.Vbias - p.Vdd + 1e-3) * 20);
+      if (d.tauTrip <= 0) penalties.push(10);
+      if (d.tauVA <= 0 || d.tauVB <= 0) penalties.push(10);
+      loss += penalties.reduce((a, x) => a + x * x, 0);
+      return loss;
+    }
+
+    function solve(values, locks) {
+      const freeKeys = VARS.map(v => v.key).filter(k => !locks[k]);
+      if (freeKeys.length === 0) {
+        return { values, message: "Everything is locked. Nothing to solve.", loss: objective(values) };
+      }
+      const meta = Object.fromEntries(VARS.map(v => [v.key, v]));
+      let current = structuredClone(values);
+      let best = structuredClone(values);
+      let bestLoss = objective(current);
+      const m = Object.fromEntries(freeKeys.map(k => [k, 0]));
+      const v = Object.fromEntries(freeKeys.map(k => [k, 0]));
+      const beta1 = 0.9;
+      const beta2 = 0.999;
+      const eps = 1e-8;
+      let t = 0;
+
+      for (let iter = 0; iter < 1400; iter++) {
+        t += 1;
+        const grad = {};
+        const baseLoss = objective(current);
+        for (const key of freeKeys) {
+          const span = meta[key].max - meta[key].min;
+          const step = Math.max(Math.abs(current[key]) * 1e-4, span * 1e-6, 1e-10);
+          const up = { ...current, [key]: current[key] + step };
+          const dn = { ...current, [key]: current[key] - step };
+          grad[key] = (objective(up) - objective(dn)) / (2 * step);
+        }
+        for (const key of freeKeys) {
+          m[key] = beta1 * m[key] + (1 - beta1) * grad[key];
+          v[key] = beta2 * v[key] + (1 - beta2) * grad[key] * grad[key];
+          const mhat = m[key] / (1 - Math.pow(beta1, t));
+          const vhat = v[key] / (1 - Math.pow(beta2, t));
+          const range = Math.max(meta[key].max - meta[key].min, 1);
+          const lr = 0.02 * range;
+          current[key] = clamp(current[key] - lr * mhat / (Math.sqrt(vhat) + eps), meta[key].min, meta[key].max);
+        }
+        const loss = objective(current);
+        if (Number.isFinite(loss) && loss < bestLoss) {
+          bestLoss = loss;
+          best = structuredClone(current);
+        }
+        if (!Number.isFinite(loss)) break;
+        if (Math.abs(baseLoss - loss) < 1e-13) break;
+      }
+
+      let message = "Found a rough fit. Consider locking more variables or relaxing unrealistic targets.";
+      if (bestLoss < 1e-6) message = "Solved cleanly with the current first-order model.";
+      else if (bestLoss < 1e-3) message = "Found a good approximate fit.";
+      return { values: best, message, loss: bestLoss };
+    }
+
+    function renderInputs() {
+      const leftCol = document.getElementById('leftCol');
+      leftCol.innerHTML = '';
+      const groups = {};
+      for (const v of VARS) {
+        if (!groups[v.group]) groups[v.group] = [];
+        groups[v.group].push(v);
+      }
+      for (const [group, vars] of Object.entries(groups)) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const head = document.createElement('div');
+        head.className = 'card-head';
+        head.textContent = group;
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        const list = document.createElement('div');
+        list.className = 'var-list';
+
+        vars.forEach(meta => {
+          const row = document.createElement('div');
+          row.className = 'var-row';
+
+          const label = document.createElement('div');
+          label.innerHTML = `<div class="label">${meta.label}</div><div class="desc">${meta.desc}</div>`;
+
+          const inputWrap = document.createElement('div');
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.step = 'any';
+          input.value = state[meta.key];
+          input.addEventListener('input', e => {
+            const n = Number(e.target.value);
+            state[meta.key] = Number.isFinite(n) ? n : 0;
+            refresh();
+          });
+          inputWrap.appendChild(input);
+
+          const unit = document.createElement('div');
+          unit.className = 'unit';
+          unit.textContent = meta.unit;
+
+          const lock = document.createElement('label');
+          lock.className = 'lock';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = !!locks[meta.key];
+          cb.addEventListener('change', e => {
+            locks[meta.key] = e.target.checked;
+            refresh();
+          });
+          lock.appendChild(cb);
+          lock.append(' lock');
+
+          row.append(label, inputWrap, unit, lock);
+          list.appendChild(row);
+        });
+
+        body.appendChild(list);
+        card.append(head, body);
+        leftCol.appendChild(card);
+      }
+    }
+
+    function metric(label, value, unit) {
+      return `<div class="metric"><div class="k">${label}</div><div class="v">${fmt(value)}</div><div class="u">${unit}</div></div>`;
+    }
+
+    function refresh() {
+      renderInputs();
+      const { list, d } = residuals(state);
+      document.getElementById('status').textContent = `Unlocked variables: ${VARS.filter(v => !locks[v.key]).length}.  Equations enforced: ${list.length}.`;
+
+      document.getElementById('derivedMetrics').innerHTML = [
+        metric('x0 = V0 − VtM1', d.x0, 'V'),
+        metric('y0 = U0 − VtM6', d.y0, 'V'),
+        metric('A', d.A, 'V⁻¹ s⁻¹'),
+        metric('B', d.B, 'V⁻¹ s⁻¹'),
+        metric('C', d.C, 'V⁻¹ s⁻¹'),
+        metric('E', d.E, 'V⁻¹ s⁻¹'),
+        metric('Mirror ratio kM7/kM2', d.mirrorRatio, '1'),
+        metric('Comparator tail current', d.Itail, 'A'),
+        metric('Trip factor', d.tripFactor, '1'),
+        metric('Regeneration factor', d.regen, '1'),
+        metric('Effective comparator gm', d.gCmpEff, 'A/V'),
+        metric('Trip delay', d.tauTrip, 's'),
+        metric('VA width', d.tauVA, 's'),
+        metric('VB width', d.tauVB, 's'),
+        metric('dV/dt at Vth', d.dVdtAtVth, 'V/s'),
+        metric('Vpeak', d.Vpeak, 'V'),
+        metric('VB low level', d.vbLow, 'V'),
+        metric('Reset charge needed', d.resetChargeNeed, 'C'),
+        metric('Reset charge available', d.resetChargeAvail, 'C'),
+        metric('M8 on-current', d.I8on, 'A'),
+        metric('ΔU from M8 pulse', d.deltaU, 'V'),
+      ].join('');
+
+      document.getElementById('effMetrics').innerHTML = [
+        metric('Quadratic coefficient', d.q2Eff, '1/(mV·ms)'),
+        metric('Linear coefficient', d.q1Eff, '1/ms'),
+        metric('Constant membrane term', d.q0Eff, 'mV/ms'),
+        metric('u coefficient', d.uCoeffEff, '1'),
+        metric('a_eff', d.aEff, '1/ms'),
+        metric('b_eff', d.bEff, '1'),
+        metric('c_eff', d.cEff, 'mV'),
+        metric('d_eff', d.dEff, 'mV'),
+        metric('Peak in model units', d.peakModel, 'mV'),
+      ].join('');
+
+      document.getElementById('residualList').innerHTML = list.map(r => {
+        const abs = Math.abs(r.residual);
+        const cls = abs < 1e-3 ? 'good' : abs < 5e-2 ? 'warn' : 'bad';
+        return `
+          <div class="res">
+            <div class="res-top">
+              <div>
+                <div><strong>${r.name}</strong></div>
+                <div class="formula">${r.formula}</div>
+              </div>
+              <div class="badge ${cls}">residual ${fmt(r.residual)}</div>
+            </div>
+            <div class="lr">
+              <div class="tiny">lhs = ${fmt(r.lhs)}</div>
+              <div class="tiny">rhs = ${fmt(r.rhs)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('solveBtn').addEventListener('click', () => {
+      const result = solve(state, locks);
+      state = structuredClone(result.values);
+      document.getElementById('status').textContent = `${result.message}  Loss = ${fmt(result.loss)}.  Unlocked variables: ${VARS.filter(v => !locks[v.key]).length}.`;
+      refresh();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      state = structuredClone(defaults);
+      locks = structuredClone(DEFAULT_LOCKS);
+      document.getElementById('status').textContent = 'Reset to defaults.';
+      refresh();
+    });
+
+    refresh();
+  </script></body>
+</html>
