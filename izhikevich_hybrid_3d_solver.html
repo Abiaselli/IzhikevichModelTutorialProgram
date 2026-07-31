@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Izhikevich Hybrid 3D Circuit Solver</title>
+<style>
+:root{--bg:#071018;--panel:#0d1822;--card:#122230;--line:#294052;--text:#e8f1f7;--muted:#9db0bd;--accent:#5fd0ff;--good:#78e6a3;--warn:#ffd36a;--bad:#ff7f8d}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 20% 0%,#132536 0,#071018 42%,#050a0f 100%);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+.app{max-width:1600px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}.top h1{font-size:26px;margin:0 0 5px}.top p{margin:0;color:var(--muted);max-width:980px;line-height:1.45}.badge{border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:var(--accent);white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px}.panel{background:rgba(13,24,34,.94);border:1px solid var(--line);border-radius:18px}.viewer{padding:12px}.canvasWrap{position:relative;min-height:590px;border-radius:14px;overflow:hidden;background:#050b10;border:1px solid #1c3344}.canvasWrap canvas{width:100%;height:590px;display:block;cursor:grab}.canvasWrap canvas:active{cursor:grabbing}.overlay{position:absolute;left:12px;top:10px;background:rgba(5,11,16,.78);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;pointer-events:none}.legend{display:flex;flex-wrap:wrap;gap:12px;padding:10px 2px 0;color:var(--muted);font-size:13px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.controls{padding:14px;display:grid;gap:12px;max-height:calc(100vh - 34px);overflow:auto}.section{border:1px solid var(--line);border-radius:15px;background:rgba(18,34,48,.72);padding:12px}.section h2{font-size:16px;margin:0 0 10px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted)} select,input,button{font:inherit} select,input[type=number]{width:100%;background:#09141d;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}.rangeRow{display:grid;grid-template-columns:1fr 92px;gap:8px;align-items:center}.rangeRow input[type=range]{width:100%;accent-color:var(--accent)} button{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#112536;color:var(--text);cursor:pointer;font-weight:650}button:hover{border-color:var(--accent)}button.primary{background:#0b6484;border-color:#2abbe9}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}.checkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;font-size:12px;color:var(--muted)}.checkgrid label{display:flex;align-items:center;gap:5px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.metric{background:#0a151e;border:1px solid var(--line);border-radius:12px;padding:9px}.metric .k{font-size:11px;color:var(--muted)}.metric .v{font-size:17px;margin-top:3px;font-family:ui-monospace,Consolas,monospace}.formula{font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.55;color:#c9d8e2;background:#09141d;border-radius:10px;padding:9px}.hint{font-size:12px;color:var(--muted);line-height:1.45}.results{display:grid;gap:7px}.result{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;background:#09141d}.result small{color:var(--muted)}.score{color:var(--good);font-family:ui-monospace,Consolas,monospace}.status{font-size:12px;color:var(--muted);min-height:18px}.tabs{display:flex;gap:6px;margin-bottom:10px}.tab{padding:7px 9px;font-size:12px}.tab.active{border-color:var(--accent);color:var(--accent)}
+@media(max-width:1100px){.layout{grid-template-columns:1fr}.controls{max-height:none}.canvasWrap,.canvasWrap canvas{min-height:520px;height:520px}}@media(max-width:650px){.app{padding:8px}.top{display:block}.badge{display:inline-block;margin-top:8px}.grid2,.grid3,.metrics{grid-template-columns:1fr 1fr}.canvasWrap,.canvasWrap canvas{min-height:420px;height:420px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div><h1>Hybrid 3D Neuron & Circuit Solver</h1><p>Unwrap the reset, lift the trajectory into integral coordinates, inspect spike-to-spike return maps, and search circuit parameters by behavioral targets rather than nullcline matching.</p></div>
+    <div class="badge" id="modelBadge">Circuit model</div>
+  </div>
+  <div class="layout">
+    <section class="panel viewer">
+      <div class="canvasWrap"><canvas id="plot"></canvas><div class="overlay" id="overlay">drag to rotate · wheel to zoom</div></div>
+      <div class="legend"><span><i class="dot" style="background:#5fd0ff"></i>trajectory</span><span><i class="dot" style="background:#ffd36a"></i>reset event</span><span><i class="dot" style="background:#78e6a3"></i>spike sample</span><span>Axes depend on selected lift</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="k">Spikes</div><div class="v" id="mSpikes">0</div></div>
+        <div class="metric"><div class="k">Rate</div><div class="v" id="mRate">0 Hz</div></div>
+        <div class="metric"><div class="k">Adaptation</div><div class="v" id="mAdapt">—</div></div>
+        <div class="metric"><div class="k">Burst score</div><div class="v" id="mBurst">—</div></div>
+      </div>
+    </section>
+
+    <aside class="panel controls">
+      <div class="section">
+        <h2>3D representation</h2>
+        <div class="grid2">
+          <div class="field"><label for="viewMode">Lift / topology</label><select id="viewMode"><option value="cylinder">Reset cylinder</option><option value="unwrapped">Unwrapped hybrid helix</option><option value="action">Action integral: z=∫||F||²dt</option><option value="double">Double integral: z=∫∫||F||²dt²</option><option value="poincare">Spike return map</option><option value="time">Ordinary state-time</option></select></div>
+          <div class="field"><label for="modelMode">Dynamics</label><select id="modelMode"><option value="circuit">MOSFET circuit approximation</option><option value="izh">Canonical Izhikevich</option></select></div>
+        </div>
+        <div class="grid2" style="margin-top:9px"><div class="field"><label for="duration">Duration (ms)</label><input id="duration" type="number" value="300" min="20" max="2000" step="10"></div><div class="field"><label for="dt">Time step (ms)</label><input id="dt" type="number" value="0.05" min="0.005" max="1" step="0.005"></div></div>
+        <div class="buttons" style="margin-top:9px"><button class="primary" id="runBtn">Simulate</button><button id="resetViewBtn">Reset camera</button></div>
+      </div>
+
+      <div class="section" id="circuitSection">
+        <h2>Circuit coefficients</h2>
+        <div class="formula">V̇ = k/(2Cv)[(V−Vt)² − β(U−Vt)²] + I/Cv<br>U̇ = k/(2Cslow)[α(V−Vt)² − γ(U−Vt)²]<br>V&gt;Vth ⇒ V←Vc, U←U+D</div>
+        <div id="circuitFields" style="display:grid;gap:8px;margin-top:10px"></div>
+        <div class="grid2" style="margin-top:8px"><div class="field"><label for="slowCap">U denominator</label><select id="slowCap"><option value="Cu">Cu</option><option value="Cv">Cv</option></select></div><div class="field"><label for="branchMode">V branch</label><select id="branchMode"><option value="piecewise">Piecewise report equation</option><option value="upper">Upper branch only</option></select></div></div>
+      </div>
+
+      <div class="section" id="izhSection" style="display:none">
+        <h2>Canonical coefficients</h2>
+        <div class="formula">v̇=0.04v²+5v+140−u+I<br>u̇=a(bv−u), reset: v←c, u←u+d</div>
+        <div id="izhFields" style="display:grid;gap:8px;margin-top:10px"></div>
+      </div>
+
+      <div class="section">
+        <h2>Behavior-guided search</h2>
+        <div class="grid2"><div class="field"><label for="targetPreset">Target behavior</label><select id="targetPreset"><option value="FS">Fast spiking</option><option value="RS">Regular spiking</option><option value="IB">Intrinsic bursting</option><option value="CH">Chattering</option><option value="LTS">Low-threshold spiking</option><option value="custom">Custom metrics</option></select></div><div class="field"><label for="iterations">Candidates</label><input id="iterations" type="number" value="250" min="20" max="3000" step="10"></div></div>
+        <div class="grid3" style="margin-top:8px"><div class="field"><label>Target spikes</label><input id="targetSpikes" type="number" value="18" min="0"></div><div class="field"><label>Target rate Hz</label><input id="targetRate" type="number" value="70" min="0"></div><div class="field"><label>Target adaptation</label><input id="targetAdapt" type="number" value="0.05" step="0.05"></div></div>
+        <div class="field" style="margin-top:8px"><label for="radius">Search radius: <span id="radiusVal">×2.0</span></label><input id="radius" type="range" min="1.1" max="10" value="2" step="0.1"></div>
+        <div class="hint" style="margin-top:7px">Choose which circuit quantities may vary. Search uses multiplicative log-space changes for positive quantities and additive changes for reset voltages.</div>
+        <div class="checkgrid" id="searchChecks" style="margin-top:8px"></div>
+        <div class="buttons" style="margin-top:9px"><button class="primary" id="searchBtn">Find candidates</button><button id="stopBtn">Stop</button></div>
+        <div class="status" id="status" aria-live="polite"></div>
+        <div class="results" id="results"></div>
+      </div>
+
+      <div class="section">
+        <h2>Data</h2>
+        <div class="buttons"><button id="csvBtn">Export trajectory CSV</button><button id="jsonBtn">Export parameters JSON</button></div>
+        <div class="hint" style="margin-top:8px">The integral lifts add coordinates; they do not turn the hybrid differential system into a closed-form solution. Their value is geometric: reset cycles, periodic orbits, drift, and candidate families become easier to see.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const state={
+ model:'circuit',view:'cylinder',duration:300,dt:.05,
+ circuit:{k:.08,Cv:1,Cu:10,alpha:1,beta:1,gamma:1,Vt:0,Vth:30,Vc:-65,D:6,I:18},
+ izh:{a:.1,b:.2,c:-65,d:2,I:10}, slowCap:'Cu',branch:'piecewise', traj:null, metrics:null,
+ camera:{yaw:-.72,pitch:.42,zoom:1.0}, searching:false, best:[]
+};
+const circuitSpecs=[
+ ['k','k transconductance',0.0001,2,.001],['Cv','Cv',.01,100,.01],['Cu','Cu',.01,200,.01],['alpha','α',.01,10,.01],['beta','β',.01,10,.01],['gamma','γ',.01,10,.01],['Vt','Vt',-10,10,.01],['Vth','Vth',-20,100,.1],['Vc','Vc',-120,40,.1],['D','D',-40,60,.1],['I','Input I',-100,200,.1]
+];
+const izhSpecs=[['a','a',-.2,1,.01],['b','b',-1,1.5,.01],['c','c',-100,-20,.1],['d','d',-30,40,.1],['I','I',-100,100,.1]];
+function makeField(container,spec,obj){const [key,label,min,max,step]=spec;const wrap=document.createElement('div');wrap.className='field';const lab=document.createElement('label');lab.textContent=label;const row=document.createElement('div');row.className='rangeRow';const r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=step;r.value=obj[key];const n=document.createElement('input');n.type='number';n.min=min;n.max=max;n.step=step;n.value=obj[key];const set=v=>{obj[key]=Number(v);r.value=obj[key];n.value=obj[key];scheduleSim()};r.addEventListener('input',e=>set(e.target.value));n.addEventListener('change',e=>set(e.target.value));row.append(r,n);wrap.append(lab,row);container.append(wrap)}
+circuitSpecs.forEach(s=>makeField($('circuitFields'),s,state.circuit));izhSpecs.forEach(s=>makeField($('izhFields'),s,state.izh));
+['k','Cv','Cu','alpha','beta','gamma','Vt','Vth','Vc','D','I'].forEach(k=>{const l=document.createElement('label');const c=document.createElement('input');c.type='checkbox';c.checked=['k','Cv','Cu','alpha','beta','gamma','Vc','D','I'].includes(k);c.value=k;l.append(c,document.createTextNode(k));$('searchChecks').append(l)});
+let simTimer=null;function scheduleSim(){clearTimeout(simTimer);simTimer=setTimeout(simulateAndDraw,80)}
+function derivatives(V,U,p,model){if(model==='izh')return [0.04*V*V+5*V+140-U+p.I,p.a*(p.b*V-U)];const Cs=state.slowCap==='Cu'?p.Cu:p.Cv;let dV;if(state.branch==='piecewise' && V<U-p.Vt)dV=(p.k/p.Cv)*((U-p.Vt)*V-.5*V*V)+p.I/p.Cv;else dV=(p.k/(2*p.Cv))*((V-p.Vt)**2-p.beta*(U-p.Vt)**2)+p.I/p.Cv;const dU=(p.k/(2*Cs))*(p.alpha*(V-p.Vt)**2-p.gamma*(U-p.Vt)**2);return [dV,dU]}
+function simulate(params=null,model=state.model,quiet=false){const p=params||state[model];const dt=state.dt, n=Math.max(2,Math.floor(state.duration/dt));let V=model==='izh'?p.c:p.Vc,U=model==='izh'?p.b*V:p.Vc;let action=0,doubleI=0,spikes=0,lastSpike=-1e9;const arr=[],events=[];for(let i=0;i<=n;i++){const t=i*dt;const [dV,dU]=derivatives(V,U,p,model);const energy=dV*dV+dU*dU;action+=energy*dt;doubleI+=action*dt;arr.push({t,V,U,dV,dU,action,doubleI,spikes,reset:false});V+=dV*dt;U+=dU*dt;const threshold=model==='izh'?30:p.Vth;if(V>=threshold){const isi=t-lastSpike;events.push({t,Vpre:V,Upre:U,isi:lastSpike<0?NaN:isi,index:spikes});lastSpike=t;spikes++;V=model==='izh'?p.c:p.Vc;U+=model==='izh'?p.d:p.D;arr[arr.length-1].reset=true;arr[arr.length-1].spikes=spikes;if(!Number.isFinite(V)||!Number.isFinite(U)||Math.abs(V)>1e6||Math.abs(U)>1e6)break}if(!Number.isFinite(V)||!Number.isFinite(U)||Math.abs(V)>1e6||Math.abs(U)>1e6)break}
+ const metrics=measure(events,arr,state.duration);if(!quiet){state.traj={arr,events};state.metrics=metrics}return {arr,events,metrics}}
+function measure(events,arr,duration){const isis=events.slice(1).map(e=>e.isi).filter(Number.isFinite);const spikes=events.length,rate=spikes/(duration/1000);let adaptation=0;if(isis.length>=4){const h=Math.floor(isis.length/2);const early=avg(isis.slice(0,h)),late=avg(isis.slice(h));adaptation=(late-early)/Math.max(early,1e-9)}let burst=0;if(isis.length>=3){const med=median(isis),short=isis.filter(x=>x<.55*med).length,long=isis.filter(x=>x>1.8*med).length;burst=(short+long)/isis.length}return{spikes,rate,adaptation,burst,isis}}
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;const median=a=>{if(!a.length)return 0;const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2);return b.length%2?b[m]:(b[m-1]+b[m])/2};
+function pointsForView(){if(!state.traj)return[];const {arr,events}=state.traj;if(state.view==='poincare')return events.filter(e=>Number.isFinite(e.isi)).map(e=>({x:e.index,y:e.Upre,z:e.isi,reset:true}));const p=state[state.model],c=state.model==='izh'?p.c:p.Vc,th=state.model==='izh'?30:p.Vth,span=Math.max(Math.abs(th-c),1e-6),maxA=Math.max(arr.at(-1)?.action||1,1),maxD=Math.max(arr.at(-1)?.doubleI||1,1);return arr.map(q=>{if(state.view==='cylinder'){const theta=2*Math.PI*(q.V-c)/span;const r=1+.012*(q.U-(arr[0]?.U||0));return{x:r*Math.cos(theta),y:r*Math.sin(theta),z:q.U,reset:q.reset}}if(state.view==='unwrapped'){const phase=(q.V-c)/span;return{x:q.V,y:q.U,z:q.spikes+phase,reset:q.reset}}if(state.view==='action')return{x:q.V,y:q.U,z:6*q.action/maxA,reset:q.reset};if(state.view==='double')return{x:q.V,y:q.U,z:6*q.doubleI/maxD,reset:q.reset};return{x:q.V,y:q.U,z:q.t,reset:q.reset}})}
+const canvas=$('plot'),ctx=canvas.getContext('2d');let drag=false,lastX=0,lastY=0;
+function resize(){const dpr=Math.min(devicePixelRatio||1,2),r=canvas.getBoundingClientRect();canvas.width=Math.floor(r.width*dpr);canvas.height=Math.floor(r.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw3d()}
+function normalizePoints(points){if(!points.length)return{pts:[],labels:['x','y','z']};let xs=points.map(p=>p.x),ys=points.map(p=>p.y),zs=points.map(p=>p.z);const bounds=a=>{let lo=Math.min(...a),hi=Math.max(...a);if(lo===hi){lo-=1;hi+=1}return[lo,hi]};const [xl,xh]=bounds(xs),[yl,yh]=bounds(ys),[zl,zh]=bounds(zs);const sx=2/(xh-xl),sy=2/(yh-yl),sz=2/(zh-zl);return{pts:points.map(p=>({...p,x:(p.x-(xl+xh)/2)*sx,y:(p.y-(yl+yh)/2)*sy,z:(p.z-(zl+zh)/2)*sz})),raw:[[xl,xh],[yl,yh],[zl,zh]]}}
+function project(p,w,h){let{x,y,z}=p;const cy=Math.cos(state.camera.yaw),sy=Math.sin(state.camera.yaw),cp=Math.cos(state.camera.pitch),sp=Math.sin(state.camera.pitch);const x1=cy*x-sy*z,z1=sy*x+cy*z,y1=cp*y-sp*z1,z2=sp*y+cp*z1;const persp=1/(3.5-z2*.55);const sc=Math.min(w,h)*.36*state.camera.zoom;return{x:w/2+x1*sc*persp*3,y:h/2-y1*sc*persp*3,d:z2}}
+function drawAxes(w,h){const axes=[[{x:-1,y:-1,z:-1},{x:1,y:-1,z:-1}], [{x:-1,y:-1,z:-1},{x:-1,y:1,z:-1}], [{x:-1,y:-1,z:-1},{x:-1,y:-1,z:1}]];ctx.lineWidth=1;ctx.strokeStyle='#294052';for(const [a,b] of axes){const A=project(a,w,h),B=project(b,w,h);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke()}}
+function draw3d(){const r=canvas.getBoundingClientRect(),w=r.width,h=r.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#050b10';ctx.fillRect(0,0,w,h);drawAxes(w,h);const n=normalizePoints(pointsForView()),pts=n.pts;if(pts.length<2)return;const step=Math.max(1,Math.ceil(pts.length/5000));ctx.lineWidth=1.6;ctx.strokeStyle='#5fd0ff';ctx.beginPath();let started=false;for(let i=0;i<pts.length;i+=step){const p=project(pts[i],w,h);if(!started){ctx.moveTo(p.x,p.y);started=true}else ctx.lineTo(p.x,p.y)}ctx.stroke();for(let i=0;i<pts.length;i+=step){if(!pts[i].reset)continue;const p=project(pts[i],w,h);ctx.fillStyle='#ffd36a';ctx.beginPath();ctx.arc(p.x,p.y,3.2,0,Math.PI*2);ctx.fill()}if(state.view==='poincare'){for(const q of pts){const p=project(q,w,h);ctx.fillStyle='#78e6a3';ctx.beginPath();ctx.arc(p.x,p.y,3.2,0,Math.PI*2);ctx.fill()}}ctx.fillStyle='#9db0bd';ctx.font='12px system-ui';ctx.fillText(viewLabels()[0],12,h-12);ctx.fillText(viewLabels()[1],w-42,h-12);ctx.fillText(viewLabels()[2],12,18)}
+function viewLabels(){return({cylinder:['phase x','phase y','U'],unwrapped:['V','U','spike+phase'],action:['V','U','action'],double:['V','U','double integral'],poincare:['spike n','U before reset','ISI'],time:['V','U','time']})[state.view]}
+canvas.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag)return;state.camera.yaw+=(e.clientX-lastX)*.009;state.camera.pitch=clamp(state.camera.pitch+(e.clientY-lastY)*.009,-1.45,1.45);lastX=e.clientX;lastY=e.clientY;draw3d()});canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('wheel',e=>{e.preventDefault();state.camera.zoom=clamp(state.camera.zoom*Math.exp(-e.deltaY*.001),.25,5);draw3d()},{passive:false});
+function updateMetrics(){const m=state.metrics||{};$('mSpikes').textContent=m.spikes??0;$('mRate').textContent=(m.rate??0).toFixed(1)+' Hz';$('mAdapt').textContent=Number.isFinite(m.adaptation)?m.adaptation.toFixed(2):'—';$('mBurst').textContent=Number.isFinite(m.burst)?m.burst.toFixed(2):'—';$('overlay').textContent=`${viewLabels().join(' · ')} | drag rotate · wheel zoom`}
+function simulateAndDraw(){state.duration=Number($('duration').value);state.dt=Number($('dt').value);simulate();updateMetrics();draw3d()}
+$('runBtn').addEventListener('click',simulateAndDraw);$('resetViewBtn').addEventListener('click',()=>{state.camera={yaw:-.72,pitch:.42,zoom:1};draw3d()});$('viewMode').addEventListener('change',e=>{state.view=e.target.value;draw3d();updateMetrics()});$('modelMode').addEventListener('change',e=>{state.model=e.target.value;$('circuitSection').style.display=state.model==='circuit'?'block':'none';$('izhSection').style.display=state.model==='izh'?'block':'none';$('modelBadge').textContent=state.model==='circuit'?'Circuit model':'Canonical model';simulateAndDraw()});$('slowCap').addEventListener('change',e=>{state.slowCap=e.target.value;simulateAndDraw()});$('branchMode').addEventListener('change',e=>{state.branch=e.target.value;simulateAndDraw()});$('radius').addEventListener('input',e=>$('radiusVal').textContent='×'+Number(e.target.value).toFixed(1));
+const presets={FS:{spikes:18,rate:70,adapt:.05,burst:.05},RS:{spikes:10,rate:35,adapt:.65,burst:.1},IB:{spikes:10,rate:35,adapt:.4,burst:.65},CH:{spikes:20,rate:70,adapt:.15,burst:.75},LTS:{spikes:8,rate:28,adapt:.35,burst:.35}};
+$('targetPreset').addEventListener('change',e=>{const p=presets[e.target.value];if(p){$('targetSpikes').value=p.spikes;$('targetRate').value=p.rate;$('targetAdapt').value=p.adapt}});
+function candidateScore(m,target){const sErr=Math.abs(m.spikes-target.spikes)/Math.max(target.spikes,3),rErr=Math.abs(m.rate-target.rate)/Math.max(target.rate,10),aErr=Math.abs(m.adaptation-target.adapt),burstTarget=presets[$('targetPreset').value]?.burst??0.2,bErr=Math.abs(m.burst-burstTarget);let score=100-30*sErr-25*rErr-22*aErr-23*bErr;if(m.spikes===0)score-=50;if(!Number.isFinite(score))score=-999;return score}
+function mutate(base,key,radius){let v=base[key];if(['Vc','Vth','Vt','D','I'].includes(key)){const scale=Math.max(Math.abs(v),10);return v+(Math.random()*2-1)*scale*(radius-1)*.35}const f=Math.exp((Math.random()*2-1)*Math.log(radius));return Math.max(1e-9,v*f)}
+async function runSearch(){if(state.model!=='circuit'){ $('status').textContent='Switch to the circuit model to run the circuit search.';return}state.searching=true;state.best=[];$('results').innerHTML='';const N=Number($('iterations').value),radius=Number($('radius').value),keys=[...$('searchChecks').querySelectorAll('input:checked')].map(x=>x.value);const target={spikes:Number($('targetSpikes').value),rate:Number($('targetRate').value),adapt:Number($('targetAdapt').value)};const base={...state.circuit};for(let i=0;i<N&&state.searching;i++){const cand={...base};keys.forEach(k=>cand[k]=mutate(base,k,radius));cand.Cv=Math.max(cand.Cv,.000001);cand.Cu=Math.max(cand.Cu,.000001);const out=simulate(cand,'circuit',true);const score=candidateScore(out.metrics,target);state.best.push({score,cand,metrics:out.metrics});state.best.sort((a,b)=>b.score-a.score);state.best=state.best.slice(0,8);if(i%10===0){$('status').textContent=`tested ${i+1}/${N} · best ${state.best[0]?.score.toFixed(1)??'—'}`;renderResults();await new Promise(r=>setTimeout(r,0))}}state.searching=false;$('status').textContent=`finished · ${N} candidates tested`;renderResults()}
+function renderResults(){$('results').innerHTML='';state.best.forEach((r,i)=>{const row=document.createElement('div');row.className='result';const txt=document.createElement('div');txt.innerHTML=`<strong>#${i+1}</strong> <span class="score">${r.score.toFixed(1)}</span><br><small>${r.metrics.spikes} spikes · ${r.metrics.rate.toFixed(1)} Hz · adapt ${r.metrics.adaptation.toFixed(2)} · burst ${r.metrics.burst.toFixed(2)}</small>`;const b=document.createElement('button');b.textContent='Apply';b.addEventListener('click',()=>{Object.assign(state.circuit,r.cand);syncCircuitInputs();simulateAndDraw()});row.append(txt,b);$('results').append(row)})}
+function syncCircuitInputs(){const fields=$('circuitFields').querySelectorAll('.field');fields.forEach((f,i)=>{const key=circuitSpecs[i][0],inputs=f.querySelectorAll('input');inputs[0].value=state.circuit[key];inputs[1].value=state.circuit[key]})}
+$('searchBtn').addEventListener('click',runSearch);$('stopBtn').addEventListener('click',()=>{state.searching=false;$('status').textContent='search stopped'});
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+$('csvBtn').addEventListener('click',()=>{if(!state.traj)return;const lines=['t,V,U,dV,dU,action,doubleIntegral,spikeCount,reset',...state.traj.arr.map(q=>[q.t,q.V,q.U,q.dV,q.dU,q.action,q.doubleI,q.spikes,q.reset?1:0].join(','))];download('hybrid_trajectory.csv',lines.join('\n'),'text/csv')});$('jsonBtn').addEventListener('click',()=>download('hybrid_parameters.json',JSON.stringify({model:state.model,view:state.view,circuit:state.circuit,izh:state.izh,slowCap:state.slowCap,branch:state.branch,metrics:state.metrics},null,2),'application/json'));
+window.addEventListener('resize',resize);simulateAndDraw();resize();
+</script>
+</body>
+</html>
